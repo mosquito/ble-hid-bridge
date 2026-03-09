@@ -1,0 +1,17 @@
+<template>
+<div v-if="state.restartRequired" class="alert-banner">
+    <span class="alert-banner-text">WiFi settings changed. Restart required to apply.</span>
+    <button class="btn btn-danger btn-sm" @click="restartDevice">
+        <span v-html="Icons.restart"></span> Restart Now
+    </button>
+</div>
+</template>
+
+<script>
+({
+    setup() {
+        const { state, Icons, restartDevice } = Vue.inject('app');
+        return { state, Icons, restartDevice };
+    }
+})
+</script>

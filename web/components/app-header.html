@@ -1,0 +1,30 @@
+<template>
+<header>
+    <div class="header-content">
+        <div class="logo">
+            <span v-html="Icons.logo"></span>
+            <span>BLE-USB Bridge</span>
+            <div class="status-dot" :class="{ connected: isConnected }"></div>
+        </div>
+        <nav>
+            <button class="nav-btn" :class="{ active: state.currentPage === 'devices' }" @click="navigate('devices')">
+                <span v-html="Icons.devices"></span>
+                <span>Devices</span>
+            </button>
+            <button class="nav-btn" :class="{ active: state.currentPage === 'settings' }" @click="navigate('settings')">
+                <span v-html="Icons.settings"></span>
+                <span>Settings</span>
+            </button>
+        </nav>
+    </div>
+</header>
+</template>
+
+<script>
+({
+    setup() {
+        const { state, isConnected, Icons, navigate } = Vue.inject('app');
+        return { state, isConnected, Icons, navigate };
+    }
+})
+</script>

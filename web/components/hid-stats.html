@@ -1,0 +1,154 @@
+<template>
+<div class="card" v-if="hasStats">
+    <div class="card-header">
+        <div class="card-title">
+            <span v-html="Icons.usb"></span>
+            HID Pipeline
+        </div>
+    </div>
+    <div style="display:flex;gap:16px;">
+        <!-- Stats table (4/12) -->
+        <div style="flex:0 0 33%;font-size:13px;">
+            <div style="display:grid;grid-template-columns:1fr auto;gap:4px 8px;">
+                <div style="color:var(--text-secondary);">BLE In</div>
+                <div style="text-align:right;font-variant-numeric:tabular-nums;">{{ fmt(s.notifyIn) }}</div>
+                <div :style="{color: s.notifyDrop > 0 ? 'var(--danger)' : 'var(--text-secondary)'}">BLE Drops</div>
+                <div :style="{textAlign:'right',fontVariantNumeric:'tabular-nums',color: s.notifyDrop > 0 ? 'var(--danger)' : ''}">{{ fmt(s.notifyDrop) }}</div>
+                <div style="color:var(--text-secondary);">BLE Out</div>
+                <div style="text-align:right;font-variant-numeric:tabular-nums;">{{ fmt(s.notifyOut) }}</div>
+                <div style="color:var(--text-secondary);">Mouse Skip</div>
+                <div style="text-align:right;font-variant-numeric:tabular-nums;">{{ fmt(s.mouseSkip) }}</div>
+                <div style="color:var(--text-secondary);">USB OK</div>
+                <div style="text-align:right;font-variant-numeric:tabular-nums;">{{ fmt(s.usbOk) }}</div>
+                <div style="color:var(--text-secondary);">USB Busy</div>
+                <div style="text-align:right;font-variant-numeric:tabular-nums;">{{ fmt(s.usbBusy) }}</div>
+                <div :style="{color: s.usbQueueFull > 0 ? 'var(--warning)' : 'var(--text-secondary)'}">USB Q Full</div>
+                <div :style="{textAlign:'right',fontVariantNumeric:'tabular-nums',color: s.usbQueueFull > 0 ? 'var(--warning)' : ''}">{{ fmt(s.usbQueueFull) }}</div>
+                <div style="color:var(--text-secondary);">USB N/Ready</div>
+                <div style="text-align:right;font-variant-numeric:tabular-nums;">{{ fmt(s.usbNotReady) }}</div>
+                <div v-if="s._btFrameMs || s._usbFrameMs" style="grid-column:1/-1;border-top:1px solid var(--border);margin:4px 0;"></div>
+                <div v-if="s._btFrameMs" style="color:var(--text-secondary);">BT Frame</div>
+                <div v-if="s._btFrameMs" style="text-align:right;font-variant-numeric:tabular-nums;">{{ fmtMs(s._btFrameMs) }}</div>
+                <div v-if="s._usbFrameMs" style="color:var(--text-secondary);">USB Frame</div>
+                <div v-if="s._usbFrameMs" style="text-align:right;font-variant-numeric:tabular-nums;">{{ fmtMs(s._usbFrameMs) }}</div>
+                <div v-if="s._usbFrameMinMs != null" style="color:var(--text-secondary);">USB Min/Max</div>
+                <div v-if="s._usbFrameMinMs != null" style="text-align:right;font-variant-numeric:tabular-nums;">{{ fmtMinMax(s._usbFrameMinMs, s._usbFrameMaxMs) }}</div>
+            </div>
+        </div>
+        <!-- Chart (8/12) -->
+        <div style="flex:1;min-height:150px;position:relative;">
+            <canvas ref="chartEl" style="width:100%;height:100%;display:block;"></canvas>
+        </div>
+    </div>
+    <div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:var(--text-muted);">
+        <span style="color:var(--accent);">&#9473; BLE In</span>
+        <span style="color:var(--success);">&#9473; USB OK</span>
+        <span v-if="hasDrop" style="color:var(--danger);">&#9473; Drops</span>
+    </div>
+</div>
+</template>
+
+<script>
+({
+    setup() {
+        const { state, Icons } = Vue.inject('app');
+        const s = Vue.computed(() => state.stats);
+        const hasStats = Vue.computed(() => Object.keys(state.stats).length > 0);
+        const hasDrop = Vue.computed(() => state.statsHistory.some(d => d.notifyDrop > 0));
+        const chartEl = Vue.ref(null);
+
+        function fmt(n) { return (n || 0).toLocaleString(); }
+        function fmtMs(v) { return v != null ? v.toFixed(1) + 'ms' : '—'; }
+        function fmtMinMax(min, max) {
+            if (min == null || max == null) return '—';
+            return min.toFixed(1) + '/' + max.toFixed(1) + 'ms';
+        }
+
+        function gc(v) {
+            return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+        }
+
+        function draw() {
+            const c = chartEl.value;
+            if (!c) return;
+            const hist = state.statsHistory;
+            const dpr = window.devicePixelRatio || 1;
+            const rect = c.getBoundingClientRect();
+            c.width = rect.width * dpr;
+            c.height = rect.height * dpr;
+            const ctx = c.getContext('2d');
+            ctx.scale(dpr, dpr);
+            const W = rect.width, H = rect.height;
+            ctx.clearRect(0, 0, W, H);
+
+            if (hist.length < 2) {
+                ctx.fillStyle = gc('--text-muted');
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Collecting data…', W / 2, H / 2);
+                return;
+            }
+
+            const P = { t: 8, r: 8, b: 4, l: 32 };
+            const pW = W - P.l - P.r, pH = H - P.t - P.b;
+
+            let maxY = 1;
+            for (const d of hist) {
+                maxY = Math.max(maxY, d.notifyIn || 0, d.usbOk || 0,
+                                     d.notifyDrop || 0);
+            }
+            maxY = Math.ceil(maxY * 1.15) || 1;
+
+            // Grid
+            const borderCol = gc('--border');
+            const mutedCol = gc('--text-muted');
+            ctx.strokeStyle = borderCol;
+            ctx.lineWidth = 0.5;
+            ctx.fillStyle = mutedCol;
+            ctx.font = '9px sans-serif';
+            ctx.textAlign = 'right';
+            for (let i = 0; i <= 4; i++) {
+                const y = P.t + pH - (pH * i / 4);
+                ctx.beginPath(); ctx.moveTo(P.l, y); ctx.lineTo(W - P.r, y); ctx.stroke();
+                if (i > 0) ctx.fillText(Math.round(maxY * i / 4), P.l - 3, y + 3);
+            }
+
+            // Draw series
+            function series(key, color, fill) {
+                const pts = hist.map((d, i) => [
+                    P.l + pW * i / (hist.length - 1),
+                    P.t + pH - pH * (d[key] || 0) / maxY
+                ]);
+                if (fill) {
+                    ctx.globalAlpha = 0.08;
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.moveTo(pts[0][0], P.t + pH);
+                    pts.forEach(p => ctx.lineTo(p[0], p[1]));
+                    ctx.lineTo(pts[pts.length - 1][0], P.t + pH);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.globalAlpha = 1;
+                }
+                ctx.strokeStyle = color;
+                ctx.lineWidth = fill ? 1.5 : 1;
+                ctx.beginPath();
+                pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]));
+                ctx.stroke();
+            }
+
+            series('notifyIn', gc('--accent'), true);
+            series('usbOk', gc('--success'), true);
+            if (hist.some(d => d.notifyDrop > 0)) series('notifyDrop', gc('--danger'), false);
+        }
+
+        Vue.watch(() => state.statsVersion, () => Vue.nextTick(draw));
+        Vue.onMounted(() => {
+            Vue.nextTick(draw);
+            window.addEventListener('resize', draw);
+        });
+
+        return { s, hasStats, hasDrop, Icons, chartEl, fmt, fmtMs, fmtMinMax };
+    }
+})
+</script>

@@ -1,0 +1,35 @@
+<template>
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <span v-html="Icons.wifi"></span>
+            WiFi Access Point
+        </div>
+    </div>
+    <form @submit.prevent="saveWiFi">
+        <div class="form-group">
+            <label class="form-label">AP Name (SSID)</label>
+            <input type="text" class="form-input" v-model="state.wifiName"
+                maxlength="32" :placeholder="'e.g. ' + state.wifiDefaultName" required>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="password" class="form-input" v-model="state.wifiPassword"
+                minlength="8" placeholder="Min 8 characters">
+            <p class="form-hint">Leave empty to keep current. Default: 12345678</p>
+        </div>
+        <button type="submit" class="btn btn-success">
+            <span v-html="Icons.check"></span> Save
+        </button>
+    </form>
+</div>
+</template>
+
+<script>
+({
+    setup() {
+        const { state, Icons, saveWiFi } = Vue.inject('app');
+        return { state, Icons, saveWiFi };
+    }
+})
+</script>

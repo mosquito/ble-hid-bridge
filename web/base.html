@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BLE-USB Bridge</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%230f0f1a'/%3E%3Cpath d='M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11' stroke='%2300d9ff' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+    <script>$vue_js</script>
+    <style>
+$styles
+    </style>
+</head>
+<body>
+    <div id="app">
+        <app-header></app-header>
+
+        <main>
+            <!-- Devices page -->
+            <template v-if="state.currentPage === 'devices'">
+                <restart-banner></restart-banner>
+                <status-card></status-card>
+                <found-devices></found-devices>
+                <saved-devices></saved-devices>
+                <key-remaps></key-remaps>
+            </template>
+
+            <!-- Settings page -->
+            <template v-if="state.currentPage === 'settings'">
+                <restart-banner></restart-banner>
+                <hid-stats></hid-stats>
+                <wifi-form></wifi-form>
+                <danger-zone></danger-zone>
+            </template>
+        </main>
+
+        <!-- Toasts -->
+        <div class="toast-container">
+            <div v-for="(toast, i) in state.toasts" :key="i" class="toast" :class="toast.type">
+                {{ toast.message }}
+            </div>
+        </div>
+    </div>
+
+    <script>
+$app_js
+    </script>
+</body>
+</html>

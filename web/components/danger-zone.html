@@ -1,0 +1,30 @@
+<template>
+<div class="card" style="border-color: var(--danger);">
+    <div class="card-header">
+        <div class="card-title" style="color: var(--danger);">
+            <span v-html="Icons.trash"></span>
+            Danger Zone
+        </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+        <button class="btn btn-danger" @click="restartDevice">
+            <span v-html="Icons.restart"></span> Restart Device
+        </button>
+        <button class="btn btn-danger" @click="factoryReset">
+            <span v-html="Icons.trash"></span> Factory Reset
+        </button>
+        <p style="font-size:12px;color:var(--text-muted);margin:0;">
+            Factory reset erases all settings, saved devices, and WiFi configuration.
+        </p>
+    </div>
+</div>
+</template>
+
+<script>
+({
+    setup() {
+        const { Icons, restartDevice, factoryReset } = Vue.inject('app');
+        return { Icons, restartDevice, factoryReset };
+    }
+})
+</script>

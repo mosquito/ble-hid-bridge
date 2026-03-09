@@ -1,0 +1,6 @@
+## IDF Component Manager Manifest File
+dependencies:
+  # TinyUSB wrapper for ESP-IDF (includes raw tinyusb as dependency)
+  espressif/esp_tinyusb: "*"
+  # WS2812 (NeoPixel) LED strip driver via RMT
+  espressif/led_strip: "^2"

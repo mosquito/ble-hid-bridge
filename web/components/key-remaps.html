@@ -1,0 +1,220 @@
+<template>
+<div class="card" v-if="savedWithStatus.length">
+    <div class="card-header">
+        <div class="card-title">
+            <span v-html="Icons.settings"></span>
+            Key Remaps
+        </div>
+    </div>
+
+    <div v-for="dev in savedWithStatus" :key="'remap-' + dev.address" class="remap-device">
+        <div class="remap-device-header" @click="toggle(dev.address)">
+            <span class="remap-toggle">{{ expanded[dev.address] ? '&#x25BC;' : '&#x25B6;' }}</span>
+            <span class="device-name">{{ dev.name || dev.address }}</span>
+            <span v-if="remaps[dev.address] && remaps[dev.address].length" class="remap-badge">
+                {{ remaps[dev.address].length }}
+            </span>
+        </div>
+
+        <div v-if="expanded[dev.address]" class="remap-entries">
+            <div v-for="(entry, idx) in (remaps[dev.address] || [])" :key="idx" class="remap-row">
+                <!-- FROM field -->
+                <div v-if="entry.fromCustom" class="remap-custom">
+                    <input type="text" class="remap-hex" :value="formatHex(entry.from)"
+                        @change="onHexInput(entry, 'from', $event)" placeholder="0x00">
+                    <span v-if="lookupName(entry.from)" class="remap-hint">{{ lookupName(entry.from) }}</span>
+                    <button class="btn-link" @click="entry.fromCustom = false" title="Switch to list">&larr;</button>
+                </div>
+                <select v-else :value="entry.from" @change="onSelectChange(entry, 'from', $event)" class="remap-select">
+                    <option v-for="k in keyboardKeys" :key="k.code" :value="k.code">{{ k.name }}</option>
+                    <option :value="-1">Custom (hex)...</option>
+                </select>
+
+                <span class="remap-arrow">&rarr;</span>
+
+                <!-- TO field -->
+                <div v-if="entry.toCustom" class="remap-custom">
+                    <input type="text" class="remap-hex" :value="formatHex(entry.to)"
+                        @change="onHexInput(entry, 'to', $event)" placeholder="0x00">
+                    <span v-if="lookupName(entry.to)" class="remap-hint">{{ lookupName(entry.to) }}</span>
+                    <button class="btn-link" @click="entry.toCustom = false" title="Switch to list">&larr;</button>
+                </div>
+                <select v-else :value="entry.to" @change="onSelectChange(entry, 'to', $event)" class="remap-select">
+                    <optgroup label="Keyboard">
+                        <option v-for="k in keyboardKeys" :key="k.code" :value="k.code">{{ k.name }}</option>
+                    </optgroup>
+                    <optgroup label="Modifiers">
+                        <option v-for="k in modifierKeys" :key="k.code" :value="k.code">{{ k.name }}</option>
+                    </optgroup>
+                    <optgroup label="Consumer">
+                        <option v-for="k in consumerKeys" :key="k.code" :value="k.code">{{ k.name }}</option>
+                    </optgroup>
+                    <option :value="-1">Custom (hex)...</option>
+                </select>
+
+                <button class="btn btn-danger btn-sm btn-icon" @click="removeEntry(dev.address, idx)" title="Remove">
+                    <span v-html="Icons.trash"></span>
+                </button>
+            </div>
+
+            <div class="remap-actions">
+                <button class="btn btn-sm" @click="addEntry(dev.address)">+ Add Remap</button>
+                <button class="btn btn-sm" style="background:var(--success);" @click="saveRemaps(dev.address)">
+                    <span v-html="Icons.check"></span> Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+</template>
+
+<script>
+({
+    setup() {
+        const { savedWithStatus, Icons, API, toast } = Vue.inject('app');
+        const expanded = Vue.reactive({});
+        const remaps = Vue.reactive({});
+
+        // HID keyboard keycodes (Usage Page 0x07)
+        const keyboardKeys = [
+            {code:0x04,name:'A'},{code:0x05,name:'B'},{code:0x06,name:'C'},{code:0x07,name:'D'},
+            {code:0x08,name:'E'},{code:0x09,name:'F'},{code:0x0A,name:'G'},{code:0x0B,name:'H'},
+            {code:0x0C,name:'I'},{code:0x0D,name:'J'},{code:0x0E,name:'K'},{code:0x0F,name:'L'},
+            {code:0x10,name:'M'},{code:0x11,name:'N'},{code:0x12,name:'O'},{code:0x13,name:'P'},
+            {code:0x14,name:'Q'},{code:0x15,name:'R'},{code:0x16,name:'S'},{code:0x17,name:'T'},
+            {code:0x18,name:'U'},{code:0x19,name:'V'},{code:0x1A,name:'W'},{code:0x1B,name:'X'},
+            {code:0x1C,name:'Y'},{code:0x1D,name:'Z'},
+            {code:0x1E,name:'1'},{code:0x1F,name:'2'},{code:0x20,name:'3'},{code:0x21,name:'4'},
+            {code:0x22,name:'5'},{code:0x23,name:'6'},{code:0x24,name:'7'},{code:0x25,name:'8'},
+            {code:0x26,name:'9'},{code:0x27,name:'0'},
+            {code:0x28,name:'Enter'},{code:0x29,name:'Escape'},{code:0x2A,name:'Backspace'},
+            {code:0x2B,name:'Tab'},{code:0x2C,name:'Space'},{code:0x2D,name:'Minus'},
+            {code:0x2E,name:'Equal'},{code:0x2F,name:'Left Bracket'},{code:0x30,name:'Right Bracket'},
+            {code:0x31,name:'Backslash'},{code:0x33,name:'Semicolon'},{code:0x34,name:'Quote'},
+            {code:0x35,name:'Grave'},{code:0x36,name:'Comma'},{code:0x37,name:'Period'},
+            {code:0x38,name:'Slash'},{code:0x39,name:'CapsLock'},
+            {code:0x3A,name:'F1'},{code:0x3B,name:'F2'},{code:0x3C,name:'F3'},{code:0x3D,name:'F4'},
+            {code:0x3E,name:'F5'},{code:0x3F,name:'F6'},{code:0x40,name:'F7'},{code:0x41,name:'F8'},
+            {code:0x42,name:'F9'},{code:0x43,name:'F10'},{code:0x44,name:'F11'},{code:0x45,name:'F12'},
+            {code:0x46,name:'PrintScreen'},{code:0x47,name:'ScrollLock'},{code:0x48,name:'Pause'},
+            {code:0x49,name:'Insert'},{code:0x4A,name:'Home'},{code:0x4B,name:'PageUp'},
+            {code:0x4C,name:'Delete'},{code:0x4D,name:'End'},{code:0x4E,name:'PageDown'},
+            {code:0x4F,name:'Right'},{code:0x50,name:'Left'},{code:0x51,name:'Down'},{code:0x52,name:'Up'},
+            {code:0x53,name:'NumLock'},
+            {code:0x65,name:'App/Menu'}
+        ];
+
+        // Modifier keys (0xE0-0xE7)
+        const modifierKeys = [
+            {code:0xE0,name:'Left Ctrl'},{code:0xE1,name:'Left Shift'},
+            {code:0xE2,name:'Left Alt'},{code:0xE3,name:'Left GUI/Super'},
+            {code:0xE4,name:'Right Ctrl'},{code:0xE5,name:'Right Shift'},
+            {code:0xE6,name:'Right Alt'},{code:0xE7,name:'Right GUI/Super'}
+        ];
+
+        // Consumer control keys (0x1000 + usage code)
+        const consumerKeys = [
+            {code:0x10B5,name:'Next Track'},{code:0x10B6,name:'Prev Track'},
+            {code:0x10CD,name:'Play/Pause'},{code:0x10E2,name:'Mute'},
+            {code:0x10E9,name:'Volume Up'},{code:0x10EA,name:'Volume Down'},
+            {code:0x1183,name:'Media Player'},{code:0x1194,name:'Calculator'},
+            {code:0x1196,name:'Browser'},{code:0x1224,name:'AC Back'},
+            {code:0x1225,name:'AC Forward'},{code:0x1226,name:'AC Stop'},
+            {code:0x1227,name:'AC Refresh'},{code:0x129D,name:'Globe (Fn)'}
+        ];
+
+        // Build lookup map: code -> name for all known keys
+        const allKeys = [...keyboardKeys, ...modifierKeys, ...consumerKeys];
+        const codeToName = new Map(allKeys.map(k => [k.code, k.name]));
+
+        // Set of known "from" codes (keyboard keys only)
+        const fromCodes = new Set(keyboardKeys.map(k => k.code));
+        // Set of all known "to" codes
+        const toCodes = new Set(allKeys.map(k => k.code));
+
+        function isCustom(code, field) {
+            return field === 'from' ? !fromCodes.has(code) : !toCodes.has(code);
+        }
+
+        function formatHex(val) {
+            if (val == null) return '';
+            return '0x' + val.toString(16).toUpperCase();
+        }
+
+        function parseHex(str) {
+            str = str.trim();
+            const n = parseInt(str, 16);
+            return Number.isFinite(n) && n >= 0 ? n : null;
+        }
+
+        function lookupName(code) {
+            return codeToName.get(code) || '';
+        }
+
+        function onSelectChange(entry, field, event) {
+            const val = +event.target.value;
+            if (val === -1) {
+                entry[field + 'Custom'] = true;
+            } else {
+                entry[field] = val;
+            }
+        }
+
+        function onHexInput(entry, field, event) {
+            const val = parseHex(event.target.value);
+            if (val !== null) {
+                entry[field] = val;
+            } else {
+                // Reset input to current value on invalid input
+                event.target.value = formatHex(entry[field]);
+            }
+        }
+
+        async function toggle(address) {
+            expanded[address] = !expanded[address];
+            if (expanded[address] && !remaps[address]) {
+                await loadRemaps(address);
+            }
+        }
+
+        async function loadRemaps(address) {
+            try {
+                const data = await API.request('GET', '/remaps?address=' + encodeURIComponent(address));
+                remaps[address] = (data.entries || []).map(e => ({
+                    from: e.from, to: e.to,
+                    fromCustom: isCustom(e.from, 'from'),
+                    toCustom: isCustom(e.to, 'to')
+                }));
+            } catch (e) {
+                remaps[address] = [];
+            }
+        }
+
+        function addEntry(address) {
+            if (!remaps[address]) remaps[address] = [];
+            remaps[address].push({from: 0x39, to: 0xE0, fromCustom: false, toCustom: false});
+        }
+
+        function removeEntry(address, idx) {
+            remaps[address].splice(idx, 1);
+        }
+
+        async function saveRemaps(address) {
+            const entries = (remaps[address] || []).map(e => ({from: e.from, to: e.to}));
+            try {
+                await API.request('POST', '/remaps', { address, entries });
+                toast('Remaps saved', 'success');
+            } catch (e) {
+                toast('Failed to save remaps', 'error');
+            }
+        }
+
+        return {
+            savedWithStatus, Icons, expanded, remaps,
+            keyboardKeys, modifierKeys, consumerKeys,
+            toggle, addEntry, removeEntry, saveRemaps,
+            formatHex, lookupName, onSelectChange, onHexInput
+        };
+    }
+})
+</script>

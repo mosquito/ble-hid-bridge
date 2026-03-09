@@ -1,0 +1,51 @@
+<template>
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <span v-html="Icons.scan"></span>
+            Found Devices
+            <span v-if="state.scanning" class="spinner"></span>
+        </div>
+        <button class="btn btn-primary btn-sm" @click="startScan" :disabled="state.scanning">
+            <span v-html="Icons.scan"></span> Scan
+        </button>
+    </div>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">
+        Click Scan to search for BLE HID devices
+    </p>
+
+    <!-- Devices found -->
+    <div v-if="availableDevices.length" class="device-list">
+        <div v-for="d in availableDevices" :key="d.address" class="device-item">
+            <div class="device-info">
+                <div class="device-name">{{ d.name || 'Unknown Device' }}</div>
+                <div class="device-meta">
+                    <span>{{ d.address }}</span>
+                    <span class="device-rssi">RSSI: {{ d.rssi }} dBm</span>
+                </div>
+            </div>
+            <div class="device-actions">
+                <button class="btn btn-success btn-sm" @click="connectDevice(d.address)">
+                    <span v-html="Icons.connect"></span> Connect
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Empty state -->
+    <div v-else class="empty">
+        <span v-html="Icons.empty"></span>
+        <div v-if="state.foundDevices.length > 0">All found devices are already connected.</div>
+        <div v-else>No devices found yet...</div>
+    </div>
+</div>
+</template>
+
+<script>
+({
+    setup() {
+        const { state, availableDevices, Icons, connectDevice, startScan } = Vue.inject('app');
+        return { state, availableDevices, Icons, connectDevice, startScan };
+    }
+})
+</script>

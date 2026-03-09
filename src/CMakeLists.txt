@@ -1,0 +1,28 @@
+idf_component_register(
+    SRCS
+        "main.cpp"
+        "storage.cpp"
+        "hid_parser.cpp"
+        "usb_hid_api.cpp"
+        "tasks/led.cpp"
+        "tasks/button.cpp"
+        "tasks/wifi.cpp"
+        "tasks/web_server.cpp"
+        "tasks/web_server_handlers.cpp"
+        "tasks/hid_bridge.cpp"
+        "tasks/ble/ble_connection.cpp"
+        "tasks/ble/key_remap.cpp"
+    INCLUDE_DIRS
+        "."
+        "../include"
+    REQUIRES
+        esp_wifi
+        esp_http_server
+        nvs_flash
+        bt
+        esp_tinyusb
+        driver
+        esp_timer
+        esp_event
+        json
+)

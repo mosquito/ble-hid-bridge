@@ -1,0 +1,55 @@
+<template>
+<div>
+    <!-- Disconnected state -->
+    <div v-if="!isConnected" class="card status-card">
+        <div class="status-icon disconnected">
+            <span v-html="Icons.usb"></span>
+        </div>
+        <div class="status-text">
+            <div class="status-label">Status</div>
+            <div class="status-value">No device connected</div>
+        </div>
+    </div>
+
+    <!-- Connected state -->
+    <div v-else class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <span v-html="Icons.bluetooth"></span>
+                Connected Devices ({{ state.connections.length }})
+            </div>
+            <button v-if="state.connections.length > 1" class="btn btn-danger btn-sm" @click="disconnectAll">
+                <span v-html="Icons.disconnect"></span> Disconnect All
+            </button>
+        </div>
+        <div class="device-list">
+            <div v-for="d in state.connections" :key="d.address" class="device-item connected">
+                <div class="device-info">
+                    <div class="device-name">
+                        <span style="color: var(--success);">&#x25CF;</span>
+                        {{ d.name || d.address }}
+                    </div>
+                    <div class="device-meta">
+                        <span>{{ d.address }}</span>
+                        <span style="color: var(--success);">Connected</span>
+                    </div>
+                </div>
+                <div class="device-actions">
+                    <button class="btn btn-danger btn-sm" @click="disconnectDevice(d.address)">
+                        <span v-html="Icons.disconnect"></span> Disconnect
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</template>
+
+<script>
+({
+    setup() {
+        const { state, isConnected, Icons, disconnectDevice, disconnectAll } = Vue.inject('app');
+        return { state, isConnected, Icons, disconnectDevice, disconnectAll };
+    }
+})
+</script>

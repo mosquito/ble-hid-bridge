@@ -1,0 +1,53 @@
+<template>
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <span v-html="Icons.devices"></span>
+            Saved Devices
+        </div>
+    </div>
+
+    <!-- Devices list -->
+    <div v-if="savedWithStatus.length" class="device-list">
+        <div v-for="d in savedWithStatus" :key="d.address" class="device-item" :class="{ connected: d.connected }">
+            <div class="device-info">
+                <div class="device-name">
+                    <span v-if="d.connected" style="color: var(--success);">&#x25CF;</span>
+                    {{ d.name || 'Unknown Device' }}
+                </div>
+                <div class="device-meta">
+                    <span>{{ d.address }}</span>
+                    <span v-if="d.connected" style="color: var(--success);">Connected</span>
+                    <span v-if="d.security >= 2" style="color: var(--warning);" title="Weak BLE security - consider upgrading device">&#x26A0; Weak security</span>
+                </div>
+            </div>
+            <div class="device-actions">
+                <button v-if="d.connected" class="btn btn-danger btn-sm" @click="disconnectDevice(d.address)">
+                    <span v-html="Icons.disconnect"></span> Disconnect
+                </button>
+                <button v-else class="btn btn-sm" @click="connectDevice(d.address)">
+                    <span v-html="Icons.connect"></span> Connect
+                </button>
+                <button class="btn btn-danger btn-sm btn-icon" @click="removeDevice(d.address)" title="Remove">
+                    <span v-html="Icons.trash"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Empty state -->
+    <div v-else class="empty">
+        <span v-html="Icons.empty"></span>
+        <div>No saved devices yet</div>
+    </div>
+</div>
+</template>
+
+<script>
+({
+    setup() {
+        const { savedWithStatus, Icons, connectDevice, disconnectDevice, removeDevice } = Vue.inject('app');
+        return { savedWithStatus, Icons, connectDevice, disconnectDevice, removeDevice };
+    }
+})
+</script>
