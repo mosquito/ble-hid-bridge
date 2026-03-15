@@ -20,6 +20,7 @@ struct DeviceRemapTable {
     char address[18];
     RemapEntry entries[MAX_KEY_REMAPS];
     uint8_t count;
+    int8_t scrollScale;  // 0=no remap, nonzero=wheel multiplier (neg=invert)
 
     /**
      * Look up a keycode. Returns the full unified target code.
@@ -65,7 +66,8 @@ public:
 
     const DeviceRemapTable* getTable(const char* address) const;
 
-    void setRemaps(const char* address, const RemapEntry* entries, uint8_t count);
+    void setRemaps(const char* address, const RemapEntry* entries, uint8_t count,
+                   int8_t scrollScale = 0);
 
     void clearRemaps(const char* address);
 

@@ -306,6 +306,14 @@ void BleConnection::processNotify(uint16_t handle, const uint8_t* data, uint16_t
             return;
         }
 
+        if (remapTable_ && remapTable_->scrollScale != 0) {
+            auto clamp8 = [](int16_t v) -> int8_t {
+                return v > 127 ? 127 : (v < -127 ? -127 : (int8_t)v);
+            };
+            wheel  = clamp8((int16_t)wheel  * remapTable_->scrollScale);
+            hwheel = clamp8((int16_t)hwheel * remapTable_->scrollScale);
+        }
+
         DBG(TAG, "[%s] MOUSE btn=%d x=%d y=%d w=%d hw=%d", address_, buttons, x, y, wheel, hwheel);
         UsbHid::sendMouse(buttons, x, y, wheel, hwheel);
         return;
@@ -354,6 +362,11 @@ void BleConnection::processNotify(uint16_t handle, const uint8_t* data, uint16_t
         int16_t x = (int8_t)data[1];
         int16_t y = (int8_t)data[2];
         int8_t wheel = (len >= 4) ? (int8_t)data[3] : 0;
+
+        if (remapTable_ && remapTable_->scrollScale != 0) {
+            int16_t scaled = (int16_t)wheel * remapTable_->scrollScale;
+            wheel = scaled > 127 ? 127 : (scaled < -127 ? -127 : (int8_t)scaled);
+        }
 
         DBG(TAG, "[%s] MOUSE (fallback) btn=%d x=%d y=%d w=%d", address_, buttons, x, y, wheel);
         UsbHid::sendMouse(buttons, x, y, wheel);

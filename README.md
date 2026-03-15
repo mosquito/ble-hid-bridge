@@ -49,7 +49,26 @@ make monitor
 make ENV=esp32s3_zero_dev
 ```
 
-Requirements: [PlatformIO](https://platformio.org/) with ESP-IDF framework.
+### Prerequisites
+
+1. Install [PlatformIO Core](https://docs.platformio.org/en/latest/core/installation/index.html) (CLI or VS Code extension).
+
+2. After the first `make` (or `pio run`), PlatformIO downloads the ESP-IDF toolchain automatically. Then install the required Python packages into the ESP-IDF virtualenv:
+
+```bash
+# Path to the ESP-IDF venv created by PlatformIO
+ESPIDF_VENV=~/.platformio/penv/.espidf-5.5.3
+ESPIDF_PKG=~/.platformio/packages/framework-espidf
+
+$ESPIDF_VENV/bin/pip install \
+    idf-component-manager \
+    esp-idf-kconfig \
+    -r $ESPIDF_PKG/tools/requirements/requirements.core.txt
+```
+
+> These packages are only needed once per machine. If you see errors like
+> `No module named 'idf_component_manager'` or `No module named kconfgen`,
+> re-run the commands above.
 
 ## Usage
 

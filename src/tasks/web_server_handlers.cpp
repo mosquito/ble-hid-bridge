@@ -603,10 +603,11 @@ esp_err_t WebServer::handleRemapsGet(httpd_req_t* req)
     cJSON* doc = cJSON_CreateObject();
     cJSON* arr = cJSON_AddArrayToObject(doc, "entries");
 
+    int8_t scrollScale = 0;
     if (address[0] != '\0') {
         static constexpr size_t BLOB_ADDR_SIZE = 18;
         static constexpr size_t BLOB_ENTRY_SIZE = 3;
-        uint8_t buf[BLOB_ADDR_SIZE + 1 + MAX_KEY_REMAPS * BLOB_ENTRY_SIZE];
+        uint8_t buf[BLOB_ADDR_SIZE + 1 + MAX_KEY_REMAPS * BLOB_ENTRY_SIZE + 1];
 
         uint32_t count = self->storage_->getUInt("rmap_cnt", 0);
 
@@ -632,9 +633,15 @@ esp_err_t WebServer::handleRemapsGet(httpd_req_t* req)
                 cJSON_AddItemToArray(arr, entry);
                 p += BLOB_ENTRY_SIZE;
             }
+
+            size_t dataEnd = BLOB_ADDR_SIZE + 1 + entryCount * BLOB_ENTRY_SIZE;
+            if (blobLen > dataEnd) {
+                scrollScale = (int8_t)buf[dataEnd];
+            }
             break;
         }
     }
+    cJSON_AddNumberToObject(doc, "scrollScale", scrollScale);
 
     sendJson(req, 200, doc);
     cJSON_Delete(doc);
@@ -686,6 +693,9 @@ esp_err_t WebServer::handleRemapsPost(httpd_req_t* req)
             }
         }
     }
+
+    cJSON* scaleItem = cJSON_GetObjectItem(reqJson, "scrollScale");
+    cmd.scrollScale = (scaleItem && cJSON_IsNumber(scaleItem)) ? (int8_t)scaleItem->valueint : 0;
 
     // Send via cmd queue to HidBridge
     if (self->ble_cmd_queue_) {

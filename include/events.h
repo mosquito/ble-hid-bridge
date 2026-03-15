@@ -45,6 +45,7 @@ struct BleCmdMsg {
         struct {
             RemapCmdEntry remapEntries[BLE_CMD_MAX_REMAPS];
             uint8_t remapCount;
+            int8_t scrollScale;  // 0=no remap, nonzero=wheel multiplier (neg=invert)
         };
     };
 };

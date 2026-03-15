@@ -692,8 +692,8 @@ void HidBridge::processCommands()
                     entries[i].to = cmd.remapEntries[i].to;
                 }
 
-                if (cmd.remapCount > 0) {
-                    remap_mgr_.setRemaps(cmd.address, entries, cmd.remapCount);
+                if (cmd.remapCount > 0 || cmd.scrollScale != 0) {
+                    remap_mgr_.setRemaps(cmd.address, entries, cmd.remapCount, cmd.scrollScale);
                 } else {
                     remap_mgr_.clearRemaps(cmd.address);
                 }

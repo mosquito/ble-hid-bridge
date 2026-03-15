@@ -11,12 +11,26 @@
         <div class="remap-device-header" @click="toggle(dev.address)">
             <span class="remap-toggle">{{ expanded[dev.address] ? '&#x25BC;' : '&#x25B6;' }}</span>
             <span class="device-name">{{ dev.name || dev.address }}</span>
-            <span v-if="remaps[dev.address] && remaps[dev.address].length" class="remap-badge">
-                {{ remaps[dev.address].length }}
+            <span v-if="hasBadge(dev.address)" class="remap-badge">
+                {{ badgeText(dev.address) }}
             </span>
         </div>
 
         <div v-if="expanded[dev.address]" class="remap-entries">
+            <!-- Scroll scale control -->
+            <div class="remap-scroll-row">
+                <label class="remap-scroll-label">Scroll wheel:</label>
+                <select class="remap-scroll-select" :value="scrollScales[dev.address] || 0"
+                        @change="scrollScales[dev.address] = +$event.target.value">
+                    <option :value="0">Normal</option>
+                    <option :value="-1">Invert</option>
+                    <option :value="2">2× faster</option>
+                    <option :value="-2">2× faster + invert</option>
+                    <option :value="3">3× faster</option>
+                    <option :value="-3">3× faster + invert</option>
+                </select>
+            </div>
+
             <div v-for="(entry, idx) in (remaps[dev.address] || [])" :key="idx" class="remap-row">
                 <!-- FROM field -->
                 <div v-if="entry.fromCustom" class="remap-custom">
@@ -74,6 +88,7 @@
         const { savedWithStatus, Icons, API, toast } = Vue.inject('app');
         const expanded = Vue.reactive({});
         const remaps = Vue.reactive({});
+        const scrollScales = Vue.reactive({});
 
         // HID keyboard keycodes (Usage Page 0x07)
         const keyboardKeys = [
@@ -151,6 +166,21 @@
             return codeToName.get(code) || '';
         }
 
+        function hasBadge(address) {
+            const keyCount = remaps[address] && remaps[address].length;
+            const scroll = scrollScales[address];
+            return keyCount || (scroll && scroll !== 0);
+        }
+
+        function badgeText(address) {
+            const keyCount = (remaps[address] || []).length;
+            const scroll = scrollScales[address] || 0;
+            const parts = [];
+            if (keyCount) parts.push(keyCount + (keyCount === 1 ? ' key' : ' keys'));
+            if (scroll !== 0) parts.push('scroll');
+            return parts.join(', ');
+        }
+
         function onSelectChange(entry, field, event) {
             const val = +event.target.value;
             if (val === -1) {
@@ -165,7 +195,6 @@
             if (val !== null) {
                 entry[field] = val;
             } else {
-                // Reset input to current value on invalid input
                 event.target.value = formatHex(entry[field]);
             }
         }
@@ -185,8 +214,10 @@
                     fromCustom: isCustom(e.from, 'from'),
                     toCustom: isCustom(e.to, 'to')
                 }));
+                scrollScales[address] = data.scrollScale || 0;
             } catch (e) {
                 remaps[address] = [];
+                scrollScales[address] = 0;
             }
         }
 
@@ -201,8 +232,9 @@
 
         async function saveRemaps(address) {
             const entries = (remaps[address] || []).map(e => ({from: e.from, to: e.to}));
+            const scrollScale = scrollScales[address] || 0;
             try {
-                await API.request('POST', '/remaps', { address, entries });
+                await API.request('POST', '/remaps', { address, entries, scrollScale });
                 toast('Remaps saved', 'success');
             } catch (e) {
                 toast('Failed to save remaps', 'error');
@@ -210,8 +242,9 @@
         }
 
         return {
-            savedWithStatus, Icons, expanded, remaps,
+            savedWithStatus, Icons, expanded, remaps, scrollScales,
             keyboardKeys, modifierKeys, consumerKeys,
+            hasBadge, badgeText,
             toggle, addEntry, removeEntry, saveRemaps,
             formatHex, lookupName, onSelectChange, onHexInput
         };

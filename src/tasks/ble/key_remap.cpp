@@ -12,7 +12,7 @@ static const char* TAG = "remap";
 // Entry: [1 byte from] [2 bytes to (little-endian)]
 static constexpr size_t BLOB_ADDR_SIZE = 18;
 static constexpr size_t BLOB_ENTRY_SIZE = 3;
-static constexpr size_t BLOB_MAX_SIZE = BLOB_ADDR_SIZE + 1 + MAX_KEY_REMAPS * BLOB_ENTRY_SIZE;
+static constexpr size_t BLOB_MAX_SIZE = BLOB_ADDR_SIZE + 1 + MAX_KEY_REMAPS * BLOB_ENTRY_SIZE + 1;
 
 uint16_t applyRemap(const DeviceRemapTable* table,
                     uint8_t& modifier, uint8_t* keys)
@@ -97,7 +97,9 @@ void KeyRemapManager::loadAll()
             p += BLOB_ENTRY_SIZE;
         }
 
-        LOG(TAG, "Loaded %d remaps for %s", t.count, t.address);
+        t.scrollScale = (blobLen > expectedLen) ? (int8_t)buf[expectedLen] : 0;
+
+        LOG(TAG, "Loaded %d remaps for %s (scrollScale=%d)", t.count, t.address, t.scrollScale);
         tableCount_++;
     }
 }
@@ -108,7 +110,8 @@ const DeviceRemapTable* KeyRemapManager::getTable(const char* address) const
     return (idx >= 0) ? &tables_[idx] : nullptr;
 }
 
-void KeyRemapManager::setRemaps(const char* address, const RemapEntry* entries, uint8_t count)
+void KeyRemapManager::setRemaps(const char* address, const RemapEntry* entries, uint8_t count,
+                                int8_t scrollScale)
 {
     if (count > MAX_KEY_REMAPS) count = MAX_KEY_REMAPS;
 
@@ -125,10 +128,11 @@ void KeyRemapManager::setRemaps(const char* address, const RemapEntry* entries, 
 
     tables_[idx].count = count;
     memcpy(tables_[idx].entries, entries, count * sizeof(RemapEntry));
+    tables_[idx].scrollScale = scrollScale;
 
     saveTable(idx);
     saveCount();
-    LOG(TAG, "Set %d remaps for %s", count, address);
+    LOG(TAG, "Set %d remaps for %s (scrollScale=%d)", count, address, scrollScale);
 }
 
 void KeyRemapManager::clearRemaps(const char* address)
@@ -175,6 +179,8 @@ void KeyRemapManager::saveTable(int idx)
     }
 
     size_t blobLen = BLOB_ADDR_SIZE + 1 + t.count * BLOB_ENTRY_SIZE;
+    buf[blobLen] = (uint8_t)t.scrollScale;
+    blobLen++;
 
     char key[12];
     snprintf(key, sizeof(key), "rmap_%d", idx);
